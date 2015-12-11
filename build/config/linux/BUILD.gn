@@ -45,6 +45,10 @@ config("x11") {
   ]
 }
 
+pkg_config("gtk") {
+  packages = [ "gtk+-3.0", "gdk-x11-3.0" ]
+}
+
 config("xcomposite") {
   libs = [ "Xcomposite" ]
 }

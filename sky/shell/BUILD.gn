@@ -277,6 +277,9 @@ if (is_android) {
       ":gpu_direct",
       ":testing",
     ]
+
+    direct_dependent_configs = [ "//build/config/linux:gtk" ]
+
   }
 } else if (is_mac) {
   import("//build/config/mac/rules.gni")
