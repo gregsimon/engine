@@ -265,6 +265,7 @@ if (is_android) {
 
     sources = [
       "platform/linux/main_linux.cc",
+      "platform/linux/platform_view_linux.h",
       "platform/linux/platform_view_linux.cc",
     ]
 
