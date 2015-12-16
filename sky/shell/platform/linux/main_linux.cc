@@ -14,9 +14,13 @@
 #include "sky/shell/switches.h"
 #include "sky/shell/testing/testing.h"
 
-int main(int argc, const char* argv[]) {
+#include <gtk/gtk.h>
+
+int main(int argc, char* argv[]) {
   base::AtExitManager exit_manager;
   base::CommandLine::Init(argc, argv);
+
+  gtk_init(&argc, &argv);
 
   base::CommandLine& command_line = *base::CommandLine::ForCurrentProcess();
 
@@ -25,18 +29,24 @@ int main(int argc, const char* argv[]) {
     return 0;
   }
 
-  base::MessageLoop message_loop;
-
   mojo::embedder::Init(std::unique_ptr<mojo::embedder::PlatformSupport>(
       new mojo::embedder::SimplePlatformSupport()));
 
   sky::shell::Shell::InitStandalone();
 
-  if (!sky::shell::InitForTesting()) {
-    sky::shell::switches::PrintUsage("sky_shell");
-    return 1;
-  }
+  //if (!sky::shell::InitForTesting()) {
+  //  sky::shell::switches::PrintUsage("sky_shell");
+  //  return 1;
+  //}
 
-  message_loop.Run();
+  base::MessageLoop message_loop;
+
+  while (TRUE == gtk_main_iteration_do(FALSE)) {
+    base::MessageLoopForUI::current()->Run();
+  }
+  //gtk_main();
+
+  //base::MessageLoop message_loop;
+  //message_loop.Run();
   return 0;
 }

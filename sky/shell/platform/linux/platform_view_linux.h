@@ -5,6 +5,13 @@
 #ifndef SKY_SHELL_PLATFORM_VIEW_LINUX_H_
 #define SKY_SHELL_PLATFORM_VIEW_LINUX_H_
 
+#include <X11/Xlib.h>
+#include <GL/glx.h>
+#include <GL/gl.h>
+#include <GL/glu.h>
+#include <gtk/gtk.h>
+#include <gdk/gdkx.h>
+
 #include "sky/shell/platform_view.h"
 
 namespace sky {
