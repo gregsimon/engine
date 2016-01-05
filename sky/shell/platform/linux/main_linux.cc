@@ -34,18 +34,17 @@ int main(int argc, char* argv[]) {
 
   sky::shell::Shell::InitStandalone();
 
-  //if (!sky::shell::InitForTesting()) {
-  //  sky::shell::switches::PrintUsage("sky_shell");
-  //  return 1;
-  //}
+  if (!sky::shell::InitForTesting()) {
+    sky::shell::switches::PrintUsage("sky_shell");
+    return 1;
+  }
 
-  base::MessageLoop message_loop;
-
+  // Start the message loop.
   while (TRUE == gtk_main_iteration_do(FALSE)) {
     base::MessageLoopForUI::current()->Run();
   }
-  //gtk_main();
 
+  //gtk_main();
   //base::MessageLoop message_loop;
   //message_loop.Run();
   return 0;
