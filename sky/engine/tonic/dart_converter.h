@@ -99,11 +99,19 @@ template <>
 struct DartConverter<long long> : public DartConverterInteger<long long> {};
 
 template <>
+struct DartConverter<unsigned long> : public DartConverterInteger<unsigned long> {};
+
+template <>
 struct DartConverter<unsigned long long> {
+
+  // TODO(abarth): The Dart VM API doesn't yet have an entry-point for
+  // an unsigned 64-bit type. We will need to add a Dart API for
+  // constructing an integer from uint64_t.
+  //
+  // (In the meantime, we have asserts below to check that we're never
+  // converting values that have the 64th bit set.)
+
   static Dart_Handle ToDart(unsigned long long val) {
-    // FIXME: WebIDL unsigned long long is guaranteed to fit into 64-bit
-    // unsigned,
-    // so we need a dart API for constructing an integer from uint64_t.
     DCHECK(val <= 0x7fffffffffffffffLL);
     return Dart_NewInteger(static_cast<int64_t>(val));
   }
@@ -226,8 +234,7 @@ struct DartConverter<String> {
 
   static String FromArguments(Dart_NativeArguments args,
                               int index,
-                              Dart_Handle& exception,
-                              bool auto_scope = true) {
+                              Dart_Handle& exception) {
     // TODO(abarth): What should we do with auto_scope?
     void* peer = nullptr;
     Dart_Handle handle = Dart_GetNativeStringArgument(args, index, &peer);
@@ -309,8 +316,7 @@ struct DartConverter<Vector<T>> {
 
   static Vector<ValueType> FromArguments(Dart_NativeArguments args,
                                           int index,
-                                          Dart_Handle& exception,
-                                          bool auto_scope = true) {
+                                          Dart_Handle& exception) {
     // TODO(abarth): What should we do with auto_scope?
     return FromDart(Dart_GetNativeArgument(args, index));
   }
@@ -335,8 +341,7 @@ struct DartConverter<DartValue*> {
 
   static PassRefPtr<DartValue> FromArguments(Dart_NativeArguments args,
                                              int index,
-                                             Dart_Handle& exception,
-                                             bool auto_scope = true) {
+                                             Dart_Handle& exception) {
     // TODO(abarth): What should we do with auto_scope?
     return FromDart(Dart_GetNativeArgument(args, index));
   }

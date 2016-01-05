@@ -21,7 +21,7 @@ vars = {
   'chromium_git': 'https://chromium.googlesource.com',
   'mojo_sdk_revision': 'c29387104b5fbcbf681e2da2559a3db5860f153f',
   'mojo_devtools_revision': '49879d78ce4486e10c2214a101d9b2e82794b2f4',
-  'skia_revision': '87ed6be0e4ea8b0a88915045f697d0fd734ed6f5',
+  'skia_revision': '52e2581700b719aad317605160a2cef45d3db68b',
 
   # Note: When updating the Dart revision, ensure that all entries that are
   # dependencies of dart are also updated
@@ -71,6 +71,12 @@ deps = {
 
   'src/third_party/skia':
    Var('chromium_git') + '/skia.git' + '@' +  Var('skia_revision'),
+
+  'src/third_party/yasm/source/patched-yasm':
+   Var('chromium_git') + '/chromium/deps/yasm/patched-yasm.git' + '@' + '4671120cd8558ce62ee8672ebf3eb6f5216f909b',
+
+  'src/third_party/libjpeg_turbo':
+   Var('chromium_git') + '/chromium/deps/libjpeg_turbo.git' + '@' + 'f4631b6ee8b1dbb05e51ae335a7886f9ac598ab6',
 
   'src/third_party/mesa/src':
    Var('chromium_git') + '/chromium/deps/mesa.git' + '@' + '071d25db04c23821a12a8b260ab9d96a097402f0',

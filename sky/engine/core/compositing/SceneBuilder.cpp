@@ -15,8 +15,51 @@
 #include "sky/compositor/picture_layer.h"
 #include "sky/compositor/statistics_layer.h"
 #include "sky/compositor/transform_layer.h"
+#include "sky/engine/tonic/dart_args.h"
+#include "sky/engine/tonic/dart_binding_macros.h"
+#include "sky/engine/tonic/dart_converter.h"
+#include "sky/engine/tonic/dart_library_natives.h"
 
 namespace blink {
+
+static void SceneBuilder_constructor(Dart_NativeArguments args) {
+  DartCallConstructor(&SceneBuilder::create, args);
+}
+
+static void SceneBuilder_pushTransform(Dart_NativeArguments args) {
+  DartArgIterator it(args);
+  Float64List matrix4 = it.GetNext<Float64List>();
+  if (it.had_exception())
+    return;
+  ExceptionState es;
+  GetReceiver<SceneBuilder>(args)->pushTransform(matrix4, es);
+  if (es.had_exception())
+    Dart_ThrowException(es.GetDartException(args, true));
+}
+
+IMPLEMENT_WRAPPERTYPEINFO(SceneBuilder);
+
+#define FOR_EACH_BINDING(V) \
+  V(SceneBuilder, pushClipRect) \
+  V(SceneBuilder, pushClipRRect) \
+  V(SceneBuilder, pushClipPath) \
+  V(SceneBuilder, pushOpacity) \
+  V(SceneBuilder, pushColorFilter) \
+  V(SceneBuilder, pop) \
+  V(SceneBuilder, addPicture) \
+  V(SceneBuilder, addStatistics) \
+  V(SceneBuilder, setRasterizerTracingThreshold) \
+  V(SceneBuilder, build)
+
+FOR_EACH_BINDING(DART_NATIVE_CALLBACK)
+
+void SceneBuilder::RegisterNatives(DartLibraryNatives* natives) {
+  natives->Register({
+    { "SceneBuilder_constructor", SceneBuilder_constructor, 2, true },
+    { "SceneBuilder_pushTransform", SceneBuilder_pushTransform, 2, true },
+FOR_EACH_BINDING(DART_REGISTER_NATIVE)
+  });
+}
 
 SceneBuilder::SceneBuilder(const Rect& bounds)
     : m_rootPaintBounds(bounds.sk_rect)
@@ -69,7 +112,7 @@ void SceneBuilder::pushOpacity(int alpha, const Rect& bounds)
     addLayer(std::move(layer));
 }
 
-void SceneBuilder::pushColorFilter(SkColor color, SkXfermode::Mode transferMode, const Rect& bounds)
+void SceneBuilder::pushColorFilter(CanvasColor color, TransferMode transferMode, const Rect& bounds)
 {
     std::unique_ptr<sky::compositor::ColorFilterLayer> layer(new sky::compositor::ColorFilterLayer());
     if (!bounds.is_null)

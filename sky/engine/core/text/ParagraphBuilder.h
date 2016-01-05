@@ -5,8 +5,6 @@
 #ifndef SKY_ENGINE_CORE_TEXT_PARAGRAPHBUILDER_H_
 #define SKY_ENGINE_CORE_TEXT_PARAGRAPHBUILDER_H_
 
-#include "sky/engine/core/css/CSSFontSelector.h"
-#include "sky/engine/core/css/resolver/FontBuilder.h"
 #include "sky/engine/core/text/Paragraph.h"
 #include "sky/engine/tonic/dart_wrappable.h"
 #include "sky/engine/tonic/int32_list.h"
@@ -14,6 +12,7 @@
 #include "sky/engine/wtf/RefCounted.h"
 
 namespace blink {
+class DartLibraryNatives;
 
 class ParagraphBuilder : public RefCounted<ParagraphBuilder>, public DartWrappable {
     DEFINE_WRAPPERTYPEINFO();
@@ -24,19 +23,20 @@ public:
 
     ~ParagraphBuilder() override;
 
-    void pushStyle(Int32List& encoded, const String& fontFamily, double fontSize, double letterSpacing);
+    void pushStyle(Int32List& encoded, const String& fontFamily, double fontSize, double letterSpacing, double wordSpacing, double lineHeight);
     void pop();
 
     void addText(const String& text);
 
     PassRefPtr<Paragraph> build(Int32List& encoded, double lineHeight);
 
+    static void RegisterNatives(DartLibraryNatives* natives);
+
 private:
     explicit ParagraphBuilder();
 
     void createRenderView();
 
-    RefPtr<CSSFontSelector> m_fontSelector;
     OwnPtr<RenderView> m_renderView;
     RenderObject* m_renderParagraph;
     RenderObject* m_currentRenderObject;

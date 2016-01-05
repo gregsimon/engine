@@ -15,7 +15,6 @@
 #include "sky/engine/public/platform/sky_display_metrics.h"
 #include "sky/engine/public/platform/WebInputEvent.h"
 #include "sky/engine/public/web/Sky.h"
-#include "sky/engine/public/web/WebRuntimeFeatures.h"
 #include "sky/shell/dart/dart_library_provider_files.h"
 #include "sky/shell/shell.h"
 #include "sky/shell/ui/animator.h"
@@ -73,9 +72,6 @@ base::WeakPtr<Engine> Engine::GetWeakPtr() {
 
 void Engine::Init() {
   TRACE_EVENT0("flutter", "Engine::Init");
-
-  blink::WebRuntimeFeatures::enableDartCheckedMode(
-    Shell::Shared().settings().enable_dart_checked_mode);
 
   DCHECK(!g_platform_impl);
   g_platform_impl = new PlatformImpl();
@@ -253,14 +249,21 @@ void Engine::PopRoute() {
     sky_view_->PopRoute();
 }
 
-void Engine::OnActivityPaused() {
-  activity_running_ = false;
-  StopAnimator();
-}
+void Engine::OnAppLifecycleStateChanged(sky::AppLifecycleState state) {
+  switch (state) {
+    case sky::AppLifecycleState::PAUSED:
+      activity_running_ = false;
+      StopAnimator();
+      break;
 
-void Engine::OnActivityResumed() {
-  activity_running_ = true;
-  StartAnimatorIfPossible();
+    case sky::AppLifecycleState::RESUMED:
+      activity_running_ = true;
+      StartAnimatorIfPossible();
+      break;
+  }
+
+  if (sky_view_)
+    sky_view_->OnAppLifecycleStateChanged(state);
 }
 
 void Engine::DidCreateIsolate(Dart_Isolate isolate) {
