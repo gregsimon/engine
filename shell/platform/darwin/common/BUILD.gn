@@ -7,8 +7,8 @@ source_set("common") {
   # as Mac.
   set_sources_assignment_filter([])
   sources = [
-    "buffer_conversions.h",
-    "buffer_conversions.mm",
+    #"buffer_conversions.h",
+    #"buffer_conversions.mm",
     "platform_mac.h",
     "platform_mac.mm",
     "process_info_mac.cc",

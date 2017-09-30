@@ -7,8 +7,8 @@
 
 #import <Cocoa/Cocoa.h>
 
-#include "FlutterBinaryMessenger.h"
-#include "FlutterMacros.h"
+#include "flutter/shell/platform/darwin/ios/framework/Headers/FlutterBinaryMessenger.h"
+#include "flutter/shell/platform/darwin/ios/framework/Headers/FlutterMacros.h"
 
 @interface FlutterWindow : NSWindow<FlutterBinaryMessenger>
 

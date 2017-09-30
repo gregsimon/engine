@@ -9,10 +9,9 @@
 #include "flutter/shell/gpu/gpu_surface_gl.h"
 #include "flutter/shell/platform/darwin/common/buffer_conversions.h"
 #include "flutter/shell/platform/darwin/desktop/platform_view_mac.h"
+#include "flutter/shell/platform/darwin/ios/framework/Headers/FlutterChannels.h"
+#include "flutter/shell/platform/darwin/ios/framework/Headers/FlutterCodecs.h"
 #include "lib/fxl/functional/make_copyable.h"
-
-#include "FlutterChannels.h"
-#include "FlutterCodecs.h"
 
 #include <algorithm>
 
