@@ -8,6 +8,9 @@ source_set("mac_desktop_platform") {
   visibility = [ ":*" ]
 
   sources = [
+    "../ios/framework/Source/FlutterCodecs.mm",
+    "../ios/framework/Source/FlutterStandardCodec.mm",
+    "../ios/framework/Source/FlutterChannels.mm",
     "flutter_app_delegate.h",
     "flutter_app_delegate.m",
     "flutter_application.h",
@@ -32,6 +35,11 @@ source_set("mac_desktop_platform") {
     "//flutter/synchronization",
     "//garnet/public/lib/fxl",
     "//third_party/skia",
+  ]
+
+  # TODO : move these ios items into 'common'
+  include_dirs = [
+    "../ios/framework/Headers"
   ]
 }
 

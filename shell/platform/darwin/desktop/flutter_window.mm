@@ -5,8 +5,47 @@
 #import "flutter_window.h"
 
 #include "flutter/common/threads.h"
+#include "flutter/fml/platform/darwin/scoped_block.h"
 #include "flutter/shell/gpu/gpu_surface_gl.h"
+#include "flutter/shell/platform/darwin/common/buffer_conversions.h"
 #include "flutter/shell/platform/darwin/desktop/platform_view_mac.h"
+#include "lib/fxl/functional/make_copyable.h"
+
+#include "FlutterChannels.h"
+#include "FlutterCodecs.h"
+
+#include <algorithm>
+
+namespace {
+
+typedef void (^PlatformMessageResponseCallback)(NSData*);
+
+class PlatformMessageResponseDarwin : public blink::PlatformMessageResponse {
+  FRIEND_MAKE_REF_COUNTED(PlatformMessageResponseDarwin);
+
+ public:
+  void Complete(std::vector<uint8_t> data) override {
+    fxl::RefPtr<PlatformMessageResponseDarwin> self(this);
+    blink::Threads::Platform()->PostTask(
+        fxl::MakeCopyable([ self, data = std::move(data) ]() mutable {
+          self->callback_.get()(shell::GetNSDataFromVector(data));
+        }));
+  }
+
+  void CompleteEmpty() override {
+    fxl::RefPtr<PlatformMessageResponseDarwin> self(this);
+    blink::Threads::Platform()->PostTask(
+        fxl::MakeCopyable([self]() mutable { self->callback_.get()(nil); }));
+  }
+
+ private:
+  explicit PlatformMessageResponseDarwin(PlatformMessageResponseCallback callback)
+      : callback_(callback, fml::OwnershipPolicy::Retain) {}
+
+  fml::ScopedBlock<PlatformMessageResponseCallback> callback_;
+};
+
+} // namespace
 
 @interface FlutterWindow ()<NSWindowDelegate>
 
@@ -39,6 +78,18 @@ static inline blink::PointerData::Change PointerChangeFromNSEventPhase(NSEventPh
 @implementation FlutterWindow {
   std::shared_ptr<shell::PlatformViewMac> _platformView;
   bool _mouseIsDown;
+  fml::scoped_nsprotocol<FlutterBasicMessageChannel*> _keyEventChannel;
+  fml::scoped_nsprotocol<FlutterBasicMessageChannel*> _systemChannel;
+  fml::scoped_nsprotocol<FlutterMethodChannel*> _textInputChannel;
+  fml::scoped_nsprotocol<FlutterMethodChannel*> _platformChannel;
+
+  // TODO : handle more than one text field at a time
+  int _textInputClient;
+  int _compositionBase;
+  int _compositionExtent;
+  int _selectionBase;
+  int _selectionExtent;
+  NSMutableString* _text;
 }
 
 @synthesize renderSurface = _renderSurface;
@@ -59,6 +110,34 @@ static inline blink::PointerData::Change PointerChangeFromNSEventPhase(NSEventPh
   _platformView->Attach();
   _platformView->SetupResourceContextOnIOThread();
   _platformView->NotifyCreated(std::make_unique<shell::GPUSurfaceGL>(_platformView.get()));
+
+  _textInputClient = 1;
+  _compositionBase = 0;
+  _compositionExtent = 0;
+  _selectionBase = 0;
+  _selectionExtent = 0;
+  _text = [[NSMutableString alloc] init];
+
+  _platformChannel.reset([[FlutterMethodChannel alloc]
+         initWithName:@"flutter/platform"
+      binaryMessenger:self
+                codec:[FlutterJSONMethodCodec sharedInstance]]);
+
+  _keyEventChannel.reset([[FlutterBasicMessageChannel alloc]
+         initWithName:@"flutter/keyevent"
+      binaryMessenger:self
+                codec:[FlutterJSONMessageCodec sharedInstance]]);
+
+  _textInputChannel.reset([[FlutterMethodChannel alloc]
+         initWithName:@"flutter/textinput"
+      binaryMessenger:self
+                codec:[FlutterJSONMethodCodec sharedInstance]]);
+
+  _systemChannel.reset([[FlutterBasicMessageChannel alloc]
+         initWithName:@"flutter/system"
+      binaryMessenger:self
+                codec:[FlutterJSONMessageCodec sharedInstance]]);
+
 }
 
 // TODO(eseidel): This does not belong in flutter_window!
@@ -143,6 +222,18 @@ static inline blink::PointerData::Change PointerChangeFromNSEventPhase(NSEventPh
   });
 }
 
+- (void)updateText {
+  NSDictionary* state = @{
+                          @"selectionBase" : @(_selectionBase),
+                          @"selectionExtent" : @(_selectionExtent),
+                          @"composingBase" : @(_compositionBase),
+                          @"composingExtent" : @(_compositionExtent),
+                          @"text" : _text,
+                        };
+  [_textInputChannel.get() invokeMethod:@"TextInputClient.updateEditingState"
+                              arguments:@[ @(_textInputClient), state ]];
+}
+
 - (void)mouseDown:(NSEvent*)event {
   [self dispatchEvent:event phase:NSEventPhaseBegan];
 }
@@ -155,12 +246,92 @@ static inline blink::PointerData::Change PointerChangeFromNSEventPhase(NSEventPh
   [self dispatchEvent:event phase:NSEventPhaseEnded];
 }
 
+- (void)deleteBackward:(id)sender {
+  NSRange range = NSMakeRange([_text length]-1,1);
+  [_text replaceCharactersInRange:range withString:@""];
+  _selectionBase = _selectionExtent = [_text length];
+  [self updateText];
+}
+
+- (void)moveRight:(id)sender {
+  _selectionBase = std::max<int>(_selectionBase+1, [_text length]-1);
+  [self updateText];
+}
+
+- (void)moveLeft:(id)sender {
+  _selectionBase--;
+  if (_selectionBase < 0)
+    _selectionBase = 0;
+  _selectionExtent = _selectionBase;
+  [self updateText];
+}
+
+- (void)insertText:(id)aString {
+  // insert @ _compositionBase
+  [_text appendString:aString];
+  _selectionBase = _selectionExtent = [_text length];
+  [self updateText];
+}
+
+- (void)keyDown:(NSEvent *)event {
+  NSLog(@"keyDown:(NSEvent) 0x%02x %d\n", event.keyCode, event.keyCode);
+  // SEE: http://swiftrien.blogspot.com/2015/03/key-bindings-nsresponder-keydown-etc.html
+  [self interpretKeyEvents:[NSArray arrayWithObject:event]];
+  /*
+    for RawKeyboard events:
+      keymap: android
+      type: keydown
+      flags
+      codePoint
+      keyCode
+      scanCode
+      metaState
+      hidUsage
+      modifiers
+    out/host_debug/FlutterTester.app/Contents/MacOS/FlutterTester --flx=/Volumes/work/hello_flutter/build/app.flx
+  */
+}
+
 - (void)dealloc {
   if (_platformView) {
     _platformView->NotifyDestroyed();
   }
 
   [super dealloc];
+}
+
+// |FlutterBinaryMessenger|
+- (void)sendOnChannel:(NSString*)channel message:(NSData* _Nullable)message {
+   [self sendOnChannel:channel message:message binaryReply:nil];
+}
+
+// |FlutterBinaryMessenger|
+- (void)sendOnChannel:(NSString*)channel
+              message:(NSData* _Nullable)message
+          binaryReply:(FlutterBinaryReply _Nullable)callback {
+  NSString* newStr = [[[NSString alloc] initWithData:message
+                                         encoding:NSUTF8StringEncoding] autorelease];
+  NSLog(@"sendOnChannel: [%@] %@", channel, newStr);
+  NSAssert(channel, @"The channel must not be null");
+
+  fxl::RefPtr<PlatformMessageResponseDarwin> response =
+      (callback == nil) ? nullptr
+                        : fxl::MakeRefCounted<PlatformMessageResponseDarwin>(^(NSData* reply) {
+                            callback(reply);
+                          });
+  fxl::RefPtr<blink::PlatformMessage> platformMessage =
+      (message == nil) ? fxl::MakeRefCounted<blink::PlatformMessage>(channel.UTF8String, response)
+                       : fxl::MakeRefCounted<blink::PlatformMessage>(
+                             channel.UTF8String, shell::GetVectorFromNSData(message), response);
+  _platformView->DispatchPlatformMessage(platformMessage);
+}
+
+// |FlutterBinaryMessenger|
+- (void)setMessageHandlerOnChannel:(NSString*)channel
+              binaryMessageHandler:(FlutterBinaryMessageHandler)handler {
+  NSAssert(channel, @"The channel must not be null");
+  NSLog(@"setMessageHandlerOnChannel");
+  //_platformView->platform_message_router().SetMessageHandler(channel.UTF8String, handler);
 }
 
 @end
