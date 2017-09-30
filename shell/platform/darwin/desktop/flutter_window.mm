@@ -221,6 +221,8 @@ static inline blink::PointerData::Change PointerChangeFromNSEventPhase(NSEventPh
   });
 }
 
+// Send the (updated) text string to the Flutter dart code. On mobile
+// this comes from an IME, here we simulate an IME running on desktop.
 - (void)updateText {
   NSDictionary* state = @{
                           @"selectionBase" : @(_selectionBase),
@@ -276,19 +278,6 @@ static inline blink::PointerData::Change PointerChangeFromNSEventPhase(NSEventPh
   NSLog(@"keyDown:(NSEvent) 0x%02x %d\n", event.keyCode, event.keyCode);
   // SEE: http://swiftrien.blogspot.com/2015/03/key-bindings-nsresponder-keydown-etc.html
   [self interpretKeyEvents:[NSArray arrayWithObject:event]];
-  /*
-    for RawKeyboard events:
-      keymap: android
-      type: keydown
-      flags
-      codePoint
-      keyCode
-      scanCode
-      metaState
-      hidUsage
-      modifiers
-    out/host_debug/FlutterTester.app/Contents/MacOS/FlutterTester --flx=/Volumes/work/hello_flutter/build/app.flx
-  */
 }
 
 - (void)dealloc {
